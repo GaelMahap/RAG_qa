@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        #file-upload {
+            margin-bottom: 20px;
+        }
+        #results {
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+        #suggestions {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .suggestion {
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Processor</h1>
+        <input type="file" id="file-upload" accept=".csv">
+        <button onclick="processFile()">Process CSV</button>
+        <div id="results" contenteditable="true"></div>
+        <button onclick="saveAsWord()">Save as Word</button>
+        <h2>Suggestions</h2>
+        <div id="suggestions"></div>
+    </div>
+
+    <script>
+        async function processFile() {
+            const fileInput = document.getElementById('file-upload');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await axios.post('/process', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                
+                displayResults(response.data);
+            } catch (error) {
+                console.error('Error processing file:', error);
+                alert('Error processing file');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            const suggestionsDiv = document.getElementById('suggestions');
+            
+            resultsDiv.innerHTML = '';
+            suggestionsDiv.innerHTML = '';
+
+            for (const [query, result] of Object.entries(data)) {
+                resultsDiv.innerHTML += `<strong>Query:</strong> ${query}\n<strong>Answer:</strong> ${result.answer}\n\n`;
+                
+                if (result.suggestions && result.suggestions.length > 0) {
+                    const suggestionsList = result.suggestions.map(suggestion => 
+                        `<div class="suggestion">${suggestion}</div>`
+                    ).join('');
+                    suggestionsDiv.innerHTML += `<h3>Suggestions for "${query}":</h3>${suggestionsList}`;
+                }
+            }
+        }
+
+        function saveAsWord() {
+            const content = document.getElementById('results').innerText;
+            axios.post('/save', { content }, { responseType: 'blob' })
+                .then(response => {
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', 'results.docx');
+                    document.body.appendChild(link);
+                    link.click();
+                })
+                .catch(error => {
+                    console.error('Error saving file:', error);
+                    alert('Error saving file');
+                });
+        }
+    </script>
+</body>
+</html>
